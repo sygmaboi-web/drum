@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Motion Drum - Low Latency</title>
+    <!-- MediaPipe Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+        }
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 30px;
+            border-radius: 12px;
+            border: 1px solid #333;
+        }
+        h1 { margin: 0 0 10px 0; font-size: 24px; }
+        p { margin: 0 0 15px 0; font-size: 14px; color: #aaa; }
+        button {
+            background-color: #00ff88;
+            color: black;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        button:hover { background-color: #00cc6a; }
+        #canvas-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+        /* Video disembunyikan, kita gambar videonya ke canvas */
+        video { display: none; } 
+    </style>
+</head>
+<body>
+
+    <div id="ui-container">
+        <h1>Motion Drum Kit</h1>
+        <p>Gunakan tangan kosong (atau stik). Pukul ke arah area berwarna.</p>
+        <button id="start-btn">Mulai Kamera & Audio</button>
+        <p id="status-text" style="margin-top: 10px; color: #00ff88; display: none;">Memuat model dan audio...</p>
+    </div>
+
+    <div id="canvas-container">
+        <video id="video-element" autoplay playsinline></video>
+        <canvas id="output-canvas"></canvas>
+    </div>
+
+    <script>
+        // --- 1. SETUP WEB AUDIO API (NO DELAY) ---
+        let audioCtx;
+        const audioBuffers = {};
+        
+        // URL Audio (menggunakan sample open source berkualitas tinggi)
+        const drumSounds = {
+            crash: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/crash.wav",
+            hihat: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/hihat.wav",
+            snare: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/snare.wav",
+            tom1: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/tom.wav",
+            ride: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/ride.wav"
+        };
+
+        async function loadAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            for (const [name, url] of Object.entries(drumSounds)) {
+                try {
+                    const response = await fetch(url);
+                    const arrayBuffer = await response.arrayBuffer();
+                    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    audioBuffers[name] = audioBuffer;
+                } catch (e) {
+                    console.error(`Gagal memuat suara ${name}:`, e);
+                }
+            }
+        }
+
+        function playSound(name) {
+            if (!audioCtx || !audioBuffers[name]) return;
+            const source = audioCtx.createBufferSource();
+            source.buffer = audioBuffers[name];
+            source.connect(audioCtx.destination);
+            source.start(0); // Mainkan instan tanpa jeda
+        }
+
+        // --- 2. SETUP ZONA DRUM (Hitboxes) ---
+        // Koordinat dinormalisasi (0.0 sampai 1.0) dari rasio layar
+        const pads = [
+            { id: "crash", name: "Crash", x: 0.1, y: 0.15, w: 0.2, h: 0.2, color: "rgba(255, 215, 0, 0.5)", hitColor: "rgba(255, 255, 255, 0.9)", isHit: false },
+            { id: "hihat", name: "Hi-Hat", x: 0.1, y: 0.45, w: 0.2, h: 0.2, color: "rgba(255, 255, 0, 0.5)", hitColor: "rgba(255, 255, 255, 0.9)", isHit: false },
+            { id: "snare", name: "Snare", x: 0.35, y: 0.55, w: 0.2, h: 0.2, color: "rgba(200, 200, 200, 0.5)", hitColor: "rgba(255, 255, 255, 0.9)", isHit: false },
+            { id: "tom1", name: "Tom", x: 0.4, y: 0.2, w: 0.2, h: 0.2, color: "rgba(0, 150, 255, 0.5)", hitColor: "rgba(255, 255, 255, 0.9)", isHit: false },
+            { id: "ride", name: "Ride", x: 0.7, y: 0.3, w: 0.2, h: 0.2, color: "rgba(255, 140, 0, 0.5)", hitColor: "rgba(255, 255, 255, 0.9)", isHit: false }
+        ];
+
+        // --- 3. LOGIKA KAMERA & DETEKSI GERAKAN ---
+        const videoElement = document.getElementById('video-element');
+        const canvasElement = document.getElementById('output-canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const startBtn = document.getElementById('start-btn');
+        const statusText = document.getElementById('status-text');
+
+        let isRunning = false;
+
+        function onResults(results) {
+            // Set ukuran canvas menyesuaikan video
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+            const w = canvasElement.width;
+            const h = canvasElement.height;
+
+            // Gambar frame video ke canvas
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, w, h);
+            canvasCtx.drawImage(results.image, 0, 0, w, h);
+
+            // Dapatkan posisi pergelangan tangan (kiri = 15, kanan = 16 di MediaPipe)
+            let leftWrist = null;
+            let rightWrist = null;
+
+            if (results.poseLandmarks) {
+                leftWrist = results.poseLandmarks[15];
+                rightWrist = results.poseLandmarks[16];
+                
+                // Gambar titik di tangan untuk feedback visual
+                canvasCtx.fillStyle = "#ff0000";
+                [leftWrist, rightWrist].forEach(wrist => {
+                    if (wrist && wrist.visibility > 0.5) {
+                        canvasCtx.beginPath();
+                        canvasCtx.arc(wrist.x * w, wrist.y * h, 10, 0, 2 * Math.PI);
+                        canvasCtx.fill();
+                    }
+                });
+            }
+
+            // Cek Hitbox untuk setiap pad drum
+            pads.forEach(pad => {
+                let hitDetected = false;
+                
+                // Area pad dalam pixel
+                const padX = pad.x * w;
+                const padY = pad.y * h;
+                const padW = pad.w * w;
+                const padH = pad.h * h;
+
+                // Fungsi cek posisi
+                const checkHit = (wrist) => {
+                    if (!wrist || wrist.visibility < 0.5) return false;
+                    return (wrist.x > pad.x && wrist.x < pad.x + pad.w && 
+                            wrist.y > pad.y && wrist.y < pad.y + pad.h);
+                };
+
+                if (checkHit(leftWrist) || checkHit(rightWrist)) {
+                    hitDetected = true;
+                }
+
+                // Logika Trigger (Hanya bunyi saat pertama masuk zona, harus keluar dulu baru bisa dipukul lagi)
+                if (hitDetected && !pad.isHit) {
+                    playSound(pad.id);
+                    pad.isHit = true;
+                } else if (!hitDetected) {
+                    pad.isHit = false; // Reset kalau tangan sudah keluar dari area
+                }
+
+                // Gambar pad di layar
+                canvasCtx.fillStyle = pad.isHit ? pad.hitColor : pad.color;
+                canvasCtx.fillRect(padX, padY, padW, padH);
+                
+                // Teks nama drum
+                canvasCtx.fillStyle = "white";
+                canvasCtx.font = "20px Arial";
+                canvasCtx.fillText(pad.name, padX + 10, padY + 30);
+            });
+
+            canvasCtx.restore();
+        }
+
+        const pose = new Pose({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+        }});
+
+        pose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        pose.onResults(onResults);
+
+        // --- 4. INIT ---
+        startBtn.addEventListener('click', async () => {
+            if (isRunning) return;
+            startBtn.style.display = "none";
+            statusText.style.display = "block";
+            
+            // Wajib interaksi user (klik) untuk memulai AudioContext di browser modern
+            await loadAudio();
+            
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await pose.send({image: videoElement});
+                },
+                width: 640,
+                height: 480
+            });
+            camera.start();
+            isRunning = true;
+            statusText.innerText = "Sistem Aktif! Silakan mainkan.";
+            setTimeout(() => { document.getElementById('ui-container').style.opacity = '0.3'; }, 2000);
+        });
+    </script>
+</body>
+</html>
