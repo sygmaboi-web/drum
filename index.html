@@ -1,446 +1,557 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Motion Drum Pro - Custom Sound Menu</title>
-    <!-- MediaPipe Holistic -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
-    
-    <style>
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: #0d0d0d; font-family: 'Segoe UI', Tahoma, sans-serif;
-            overflow: hidden; color: white; user-select: none;
-        }
-        #main-container {
-            position: relative; width: 100vw; height: 100vh;
-            display: flex; justify-content: center; align-items: center;
-        }
-        video { display: none; }
-        canvas {
-            position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%; object-fit: cover;
-            transform: scaleX(-1); /* Mirror */
-            z-index: 1;
-        }
-        
-        /* UI Panel Glassmorphism */
-        #ui-panel {
-            position: absolute; top: 15px; left: 15px; z-index: 10;
-            background: rgba(20, 20, 20, 0.88); backdrop-filter: blur(12px);
-            padding: 15px; border-radius: 15px; border: 1px solid #444;
-            width: 280px; max-height: 90vh; overflow-y: auto;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-            transition: opacity 0.3s ease;
-        }
-        h1 { margin: 0 0 5px 0; font-size: 20px; color: #00ff88; }
-        p { margin: 0 0 12px 0; font-size: 11px; color: #bbb; line-height: 1.3; }
-        
-        .control-group { margin-bottom: 12px; }
-        label { font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px; color: #ddd;}
-        select {
-            width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #555;
-            background: #2a2a2a; color: white; outline: none; font-size: 12px;
-        }
-        
-        button {
-            width: 100%; background: linear-gradient(45deg, #00ff88, #00cc6a);
-            color: black; border: none; padding: 10px; font-size: 14px; font-weight: bold;
-            border-radius: 8px; cursor: pointer; transition: 0.3s;
-        }
-        button:hover { transform: scale(1.02); box-shadow: 0 0 12px rgba(0,255,136,0.4); }
-        
-        .pad-mapping-row {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 6px; background: rgba(255,255,255,0.05); padding: 5px 8px; border-radius: 6px;
-        }
-        .pad-mapping-row span { font-size: 11px; font-weight: bold; width: 80px; color: #00ff88; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Motion Drum Kit</title>
+<style>
+  * { box-sizing: border-box; margin:0; padding:0; }
+  html, body {
+    width:100%; height:100%; overflow:hidden;
+    background:#05060a; font-family: 'Segoe UI', Arial, sans-serif;
+    color:#fff;
+  }
+  #stage { position:relative; width:100vw; height:100vh; }
+  video { display:none; }
+  canvas#view {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:#000;
+  }
 
-        /* Status & Velocity Bar */
-        #status-bar {
-            position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
-            z-index: 10; display: flex; gap: 15px;
-            background: rgba(0,0,0,0.7); padding: 8px 18px; border-radius: 20px;
-            border: 1px solid #444;
-        }
-        .indicator { font-size: 13px; font-weight: bold; }
-        .indicator span { color: #00ff88; }
-    </style>
+  #panel {
+    position:absolute; top:14px; left:14px; width:290px;
+    max-height: 92vh; overflow-y:auto;
+    background:rgba(20,22,35,0.55);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    border:1px solid rgba(255,255,255,0.15);
+    border-radius:16px;
+    padding:14px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.4);
+    transition: opacity .4s ease, transform .4s ease;
+    z-index:10;
+    font-size:12px;
+  }
+  #panel.playing { opacity:0.28; }
+  #panel.playing:hover { opacity:0.95; }
+
+  #panel h1 {
+    font-size:15px; font-weight:600; margin-bottom:8px;
+    background:linear-gradient(90deg,#7ee0ff,#c58fff);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .row { display:flex; align-items:center; justify-content:space-between; margin:6px 0; gap:6px; }
+  label { opacity:0.85; }
+  select, button {
+    background:rgba(255,255,255,0.08);
+    color:#fff; border:1px solid rgba(255,255,255,0.2);
+    border-radius:8px; padding:4px 6px; font-size:11px;
+    outline:none; cursor:pointer;
+  }
+  select:hover, button:hover { background:rgba(255,255,255,0.18); }
+  #startBtn {
+    width:100%; padding:9px; font-size:13px; font-weight:600;
+    background:linear-gradient(90deg,#3fa9ff,#8a5cff); border:none;
+    border-radius:10px; margin:8px 0; color:#fff;
+  }
+  .mode-toggle { display:flex; gap:4px; }
+  .mode-toggle button { flex:1; }
+  .mode-toggle button.active { background:linear-gradient(90deg,#3fa9ff,#8a5cff); }
+  hr { border:none; border-top:1px solid rgba(255,255,255,0.15); margin:8px 0; }
+  .padrow { display:flex; align-items:center; justify-content:space-between; margin:3px 0; }
+  .padrow span { width:90px; opacity:0.85; font-size:11px; }
+  .padrow select { flex:1; }
+
+  #bottomBar {
+    position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    display:flex; gap:18px; align-items:center;
+    background:rgba(20,22,35,0.5);
+    backdrop-filter: blur(10px);
+    border:1px solid rgba(255,255,255,0.15);
+    border-radius:14px; padding:8px 18px; z-index:10;
+  }
+  #velWrap { display:flex; align-items:center; gap:8px; }
+  #velMeter {
+    width:160px; height:10px; border-radius:6px; overflow:hidden;
+    background:rgba(255,255,255,0.12);
+  }
+  #velFill {
+    height:100%; width:0%; background:linear-gradient(90deg,#4fc3f7,#f06292);
+    transition: width .05s linear;
+  }
+  #mouthStatus {
+    padding:4px 10px; border-radius:8px; font-size:12px; font-weight:600;
+    background:rgba(255,255,255,0.1);
+  }
+  #mouthStatus.open { background:#ff5f6d; box-shadow:0 0 14px #ff5f6d; }
+
+  #loading {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:10px; background:#05060a; z-index:20; text-align:center;
+  }
+  #loading small { opacity:0.6; max-width:340px; }
+  .spinner {
+    width:36px; height:36px; border-radius:50%;
+    border:3px solid rgba(255,255,255,0.2); border-top-color:#7ee0ff;
+    animation:spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .hidden { display:none !important; }
+</style>
 </head>
 <body>
+<div id="stage">
+  <video id="video" playsinline></video>
+  <canvas id="view"></canvas>
 
-    <div id="main-container">
-        <video id="video-element" autoplay playsinline></video>
-        <canvas id="output-canvas"></canvas>
-
-        <div id="ui-panel">
-            <h1>🥁 Drum Sound Menu</h1>
-            <p>Atur suara tiap pad sesukamu. Kick diaktifkan dengan buka mulut! 😮</p>
-            
-            <button id="start-btn">Mulai Kamera & Audio</button>
-            <p id="loading-text" style="color: yellow; display: none; margin-top:8px;">Memuat AI Model...</p>
-
-            <div class="control-group" style="margin-top: 15px;">
-                <label>Mode Tracking Pukulan</label>
-                <select id="stick-mode">
-                    <option value="stick" selected>Virtual Stick (Di Ujung Jari)</option>
-                    <option value="hand">Pergelangan Tangan Saja</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <label>Preset Kit Keseluruhan</label>
-                <select id="preset-selector">
-                    <option value="standard">Standard Rock Kit</option>
-                    <option value="electro">Electro / Hip-Hop Kit</option>
-                    <option value="percussion">Percussion / Acoustic</option>
-                </select>
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid #444; margin: 12px 0;">
-
-            <label style="color: #00ff88; margin-bottom: 8px;">🎛️ Custom Sound Per Part Drum:</label>
-            
-            <div class="pad-mapping-row">
-                <span>Crash (Kiri Atas)</span>
-                <select id="sound-pad1" class="sound-select">
-                    <option value="crash" selected>Crash Cymbal</option>
-                    <option value="ride">Ride Cymbal</option>
-                    <option value="hihat">Hi-Hat Closed</option>
-                    <option value="snare">Snare</option>
-                    <option value="tom">Tom</option>
-                    <option value="kick">Kick Bass</option>
-                </select>
-            </div>
-
-            <div class="pad-mapping-row">
-                <span>Hi-Hat (Kiri Bwh)</span>
-                <select id="sound-pad2" class="sound-select">
-                    <option value="crash">Crash Cymbal</option>
-                    <option value="ride">Ride Cymbal</option>
-                    <option value="hihat" selected>Hi-Hat Closed</option>
-                    <option value="snare">Snare</option>
-                    <option value="tom">Tom</option>
-                    <option value="kick">Kick Bass</option>
-                </select>
-            </div>
-
-            <div class="pad-mapping-row">
-                <span>Snare (Tengah)</span>
-                <select id="sound-pad3" class="sound-select">
-                    <option value="crash">Crash Cymbal</option>
-                    <option value="ride">Ride Cymbal</option>
-                    <option value="hihat">Hi-Hat Closed</option>
-                    <option value="snare" selected>Snare</option>
-                    <option value="tom">Tom</option>
-                    <option value="kick">Kick Bass</option>
-                </select>
-            </div>
-
-            <div class="pad-mapping-row">
-                <span>Ride (Kanan)</span>
-                <select id="sound-pad4" class="sound-select">
-                    <option value="crash">Crash Cymbal</option>
-                    <option value="ride" selected>Ride Cymbal</option>
-                    <option value="hihat">Hi-Hat Closed</option>
-                    <option value="snare">Snare</option>
-                    <option value="tom">Tom</option>
-                    <option value="kick">Kick Bass</option>
-                </select>
-            </div>
-
-            <div class="pad-mapping-row">
-                <span>Tom (Kanan Atas)</span>
-                <select id="sound-pad5" class="sound-select">
-                    <option value="crash">Crash Cymbal</option>
-                    <option value="ride">Ride Cymbal</option>
-                    <option value="hihat">Hi-Hat Closed</option>
-                    <option value="snare">Snare</option>
-                    <option value="tom" selected>Tom</option>
-                    <option value="kick">Kick Bass</option>
-                </select>
-            </div>
-        </div>
-
-        <div id="status-bar" style="display: none;">
-            <div class="indicator">Velocity: <span id="velo-disp">0</span>%</div>
-            <div class="indicator">Kick (Mulut): <span id="kick-disp">OFF</span></div>
-        </div>
+  <div id="panel">
+    <h1>🥁 3D Motion Drum Kit</h1>
+    <button id="startBtn">▶ Mulai Kamera</button>
+    <div class="row">
+      <label>Mode Pukul</label>
+      <div class="mode-toggle">
+        <button id="modeStick" class="active">Virtual Stick</button>
+        <button id="modeWrist">Pergelangan</button>
+      </div>
     </div>
+    <hr>
+    <div id="soundMap"></div>
+  </div>
 
-    <script>
-        // --- 1. SETUP AUDIO & BANK SUARA ALTERNATIF ---
-        let audioCtx;
-        const audioBuffers = {};
-        
-        // Link audio cadangan berkualitas agar variasi preset bisa dibedakan
-        const soundURLs = {
-            crash: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/crash.wav",
-            ride: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/ride.wav",
-            hihat: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/hihat.wav",
-            snare: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/snare.wav",
-            tom: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/tom.wav",
-            kick: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/kick.wav",
-            // Tambahan suara alternatif untuk efek preset
-            clap: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/clap.wav",
-            openhat: "https://raw.githubusercontent.com/wesbos/JavaScript30/master/01%20-%20JavaScript%20Drum%20Kit/sounds/openhat.wav"
-        };
+  <div id="bottomBar">
+    <div id="velWrap">
+      <label style="font-size:11px;opacity:.8;">Velocity</label>
+      <div id="velMeter"><div id="velFill"></div></div>
+    </div>
+    <div id="mouthStatus">MULUT: TUTUP</div>
+  </div>
 
-        async function loadAudio() {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            for (const [name, url] of Object.entries(soundURLs)) {
-                try {
-                    const res = await fetch(url);
-                    audioBuffers[name] = await audioCtx.decodeAudioData(await res.arrayBuffer());
-                } catch (e) { console.error(`Gagal load ${name}`); }
-            }
-        }
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>Memuat model tracking...</div>
+    <small>Mohon izinkan akses kamera. Gunakan orientasi layar landscape untuk pengalaman terbaik.</small>
+  </div>
+</div>
 
-        function playSound(name, velocity = 1.0) {
-            let activeSound = name;
-            if (!audioCtx || !audioBuffers[activeSound]) activeSound = 'snare'; // Fallback aman
-            
-            const source = audioCtx.createBufferSource();
-            const gainNode = audioCtx.createGain();
-            
-            source.buffer = audioBuffers[activeSound];
-            gainNode.gain.value = Math.max(0.2, Math.min(velocity, 1.5)); 
-            
-            source.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            source.start(0);
-            
-            document.getElementById('velo-disp').innerText = Math.round(gainNode.gain.value * 100);
-        }
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
+<script>
+/* ============================== AUDIO ENGINE ============================== */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const masterGain = audioCtx.createGain();
+masterGain.gain.value = 0.9;
+masterGain.connect(audioCtx.destination);
 
-        // --- 2. FITUR PRESET KITS ---
-        const presets = {
-            standard: { pad1: 'crash', pad2: 'hihat', pad3: 'snare', pad4: 'ride', pad5: 'tom' },
-            electro: { pad1: 'clap', pad2: 'openhat', pad3: 'snare', pad4: 'crash', pad5: 'kick' },
-            percussion: { pad1: 'ride', pad2: 'tom', pad3: 'clap', pad4: 'crash', pad5: 'hihat' }
-        };
+function makeBuffer(duration){
+  return audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate*duration), audioCtx.sampleRate);
+}
+function highpassify(data, amount){
+  let prevIn=0, prevOut=0;
+  for(let i=0;i<data.length;i++){
+    const x = data[i];
+    const y = x - prevIn + amount*prevOut;
+    prevOut = y; prevIn = x;
+    data[i] = y;
+  }
+}
 
-        document.getElementById('preset-selector').addEventListener('change', (e) => {
-            const selectedPreset = presets[e.target.value];
-            if (selectedPreset) {
-                for (let [padId, soundName] of Object.entries(selectedPreset)) {
-                    const selectEl = document.getElementById(`sound-${padId}`);
-                    if (selectEl) selectEl.value = soundName;
-                }
-            }
-        });
+function synthKick(variant){
+  const dur = variant==='808' ? 1.1 : 0.45;
+  const buf = makeBuffer(dur); const d = buf.getChannelData(0); const sr=audioCtx.sampleRate;
+  const startF = variant==='electronic' ? 230 : 150;
+  const endF = variant==='808' ? 32 : 48;
+  const decayRate = variant==='808' ? 3.2 : 9;
+  for(let i=0;i<d.length;i++){
+    const t=i/sr;
+    const f = endF + (startF-endF)*Math.exp(-t*20);
+    const env = Math.exp(-t*decayRate);
+    const click = t<0.004 ? (1-t/0.004)*0.7 : 0;
+    d[i] = Math.sin(2*Math.PI*f*t)*env + click;
+  }
+  return buf;
+}
+function synthSnare(variant){
+  const dur = variant==='electronic' ? 0.28 : 0.22;
+  const buf = makeBuffer(dur); const d = buf.getChannelData(0); const sr=audioCtx.sampleRate;
+  const tone = variant==='808' ? 240 : 190;
+  for(let i=0;i<d.length;i++){
+    const t=i/sr;
+    const noise = (Math.random()*2-1);
+    const envN = Math.exp(-t*22);
+    const envT = Math.exp(-t*35);
+    d[i] = noise*0.55*envN + Math.sin(2*Math.PI*tone*t)*0.5*envT;
+  }
+  highpassify(d, variant==='acoustic'?0.3:0.55);
+  return buf;
+}
+function synthHat(variant, open){
+  const dur = open ? (variant==='808'?0.9:0.6) : (variant==='808'?0.09:0.06);
+  const buf = makeBuffer(dur); const d = buf.getChannelData(0); const sr=audioCtx.sampleRate;
+  const decay = open ? 3.5 : 26;
+  for(let i=0;i<d.length;i++){
+    const t=i/sr;
+    d[i] = (Math.random()*2-1)*Math.exp(-t*decay)*0.8;
+  }
+  highpassify(d, 0.86);
+  return buf;
+}
+function synthCymbal(variant, dur, bright){
+  const buf = makeBuffer(dur); const d = buf.getChannelData(0); const sr=audioCtx.sampleRate;
+  const partials = [1,1.48,2.14,2.87,3.62];
+  for(let i=0;i<d.length;i++){
+    const t=i/sr;
+    let s=0;
+    for(const p of partials) s += Math.sin(2*Math.PI*(220*p)*t);
+    s /= partials.length;
+    const noise = (Math.random()*2-1);
+    const env = Math.exp(-t*(3.2/dur));
+    d[i] = (s*0.4 + noise*0.6)*env;
+  }
+  highpassify(d, bright);
+  return buf;
+}
+function synthTom(variant, baseFreq){
+  const dur = variant==='808' ? 0.7 : 0.4;
+  const buf = makeBuffer(dur); const d = buf.getChannelData(0); const sr=audioCtx.sampleRate;
+  for(let i=0;i<d.length;i++){
+    const t=i/sr;
+    const f = baseFreq*1.6*Math.exp(-t*12) + baseFreq*0.7;
+    const env = Math.exp(-t*(variant==='808'?4:7));
+    d[i] = Math.sin(2*Math.PI*f*t)*env;
+  }
+  return buf;
+}
 
-        // --- 3. DEFINISI 3D DRUM PADS ---
-        const pads = [
-            { id: "pad1", cx: 0.2, cy: 0.3, rx: 0.12, ry: 0.05, color: "#ffcc00", isHit: false },
-            { id: "pad2", cx: 0.15, cy: 0.6, rx: 0.1, ry: 0.04, color: "#e6e600", isHit: false },
-            { id: "pad3", cx: 0.45, cy: 0.7, rx: 0.12, ry: 0.06, color: "#cccccc", isHit: false },
-            { id: "pad4", cx: 0.8, cy: 0.4, rx: 0.14, ry: 0.06, color: "#ff9900", isHit: false },
-            { id: "pad5", cx: 0.55, cy: 0.35, rx: 0.1, ry: 0.04, color: "#3399ff", isHit: false }
-        ];
+const VARIANTS = ['acoustic','electronic','808'];
+const GENERATORS = {
+  kick:      v => synthKick(v),
+  snare:     v => synthSnare(v),
+  hihatClosed: v => synthHat(v,false),
+  hihatOpen: v => synthHat(v,true),
+  tom1:      v => synthTom(v, 220),
+  tom2:      v => synthTom(v, 170),
+  floorTom:  v => synthTom(v, 110),
+  crash:     v => synthCymbal(v, v==='808'?2.4:1.8, 0.75),
+  ride:      v => synthCymbal(v, v==='808'?1.6:1.3, 0.6),
+  china1:    v => synthCymbal(v, v==='808'?1.4:1.0, 0.85),
+  china2:    v => synthCymbal(v, v==='808'?1.4:1.0, 0.85),
+  splash:    v => synthCymbal(v, v==='808'?0.6:0.4, 0.7),
+};
 
-        let kickCooldown = false;
+// Pre-generate all buffers (type x variant) for instant zero-latency playback
+const BUFFERS = {};
+for(const type in GENERATORS){
+  BUFFERS[type] = {};
+  for(const v of VARIANTS){
+    BUFFERS[type][v] = GENERATORS[type](v);
+  }
+}
 
-        // --- 4. AI TRACKING & LOGIKA ---
-        const videoElement = document.getElementById('video-element');
-        const canvasElement = document.getElementById('output-canvas');
-        const canvasCtx = canvasElement.getContext('2d');
-        
-        let prevLeftHand = {x: 0, y: 0, time: Date.now()};
-        let prevRightHand = {x: 0, y: 0, time: Date.now()};
+function playPad(pad, velocity){
+  const buf = BUFFERS[pad.type][pad.variant];
+  if(!buf) return;
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const g = audioCtx.createGain();
+  const vol = Math.min(1, Math.max(0.15, velocity));
+  g.gain.value = vol;
+  src.connect(g).connect(masterGain);
+  src.start(0);
+}
 
-        function calculateVelocity(current, previous) {
-            const dx = current.x - previous.x;
-            const dy = current.y - previous.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            const timeDiff = Date.now() - previous.time;
-            if(timeDiff === 0) return 0.5;
-            return Math.min(Math.max(((dist / timeDiff) * 1000) * 0.1, 0.3), 1.5);
-        }
+/* ============================== PAD LAYOUT ============================== */
+const PADS = [
+  {id:'crash1',      label:'Crash 1',       type:'crash',        fx:0.06, fy:0.18, rx:0.06, ry:0.10, color:'#ffd54f', variant:'acoustic'},
+  {id:'hihatOpen',   label:'HiHat Open',    type:'hihatOpen',    fx:0.20, fy:0.32, rx:0.055,ry:0.09, color:'#4fc3f7', variant:'acoustic'},
+  {id:'tom1',        label:'Tom 1',         type:'tom1',         fx:0.37, fy:0.22, rx:0.05, ry:0.08, color:'#81c784', variant:'acoustic'},
+  {id:'tom2',        label:'Tom 2',         type:'tom2',         fx:0.53, fy:0.22, rx:0.05, ry:0.08, color:'#81c784', variant:'acoustic'},
+  {id:'ride',        label:'Ride',          type:'ride',         fx:0.69, fy:0.18, rx:0.065,ry:0.10, color:'#ffb74d', variant:'acoustic'},
+  {id:'china2',      label:'China 2',       type:'china2',       fx:0.87, fy:0.20, rx:0.055,ry:0.09, color:'#e57373', variant:'acoustic'},
+  {id:'hihatClosed', label:'HiHat Closed',  type:'hihatClosed',  fx:0.17, fy:0.53, rx:0.055,ry:0.09, color:'#4fc3f7', variant:'acoustic'},
+  {id:'snare',       label:'Snare',         type:'snare',        fx:0.42, fy:0.56, rx:0.06, ry:0.10, color:'#f06292', variant:'acoustic'},
+  {id:'floorTom',    label:'Floor Tom',     type:'floorTom',     fx:0.62, fy:0.60, rx:0.065,ry:0.10, color:'#81c784', variant:'acoustic'},
+  {id:'china1',      label:'China 1',       type:'china1',       fx:0.07, fy:0.68, rx:0.05, ry:0.08, color:'#e57373', variant:'acoustic'},
+  {id:'crash2',      label:'Crash 2',       type:'crash',        fx:0.92, fy:0.55, rx:0.06, ry:0.10, color:'#ffd54f', variant:'acoustic'},
+  {id:'splash',      label:'Splash',        type:'splash',       fx:0.30, fy:0.77, rx:0.045,ry:0.07, color:'#ba68c8', variant:'acoustic'},
+];
+const KICK_PAD = {id:'kick', label:'Kick (Mulut)', type:'kick', fx:0.5, fy:0.92, rx:0.09, ry:0.06, color:'#ff8a65', variant:'acoustic'};
 
-        function onResults(results) {
-            canvasElement.width = window.innerWidth;
-            canvasElement.height = window.innerHeight;
-            const w = canvasElement.width;
-            const h = canvasElement.height;
+/* ============================== UI: sound mapping ============================== */
+const soundMapEl = document.getElementById('soundMap');
+function buildSoundMap(){
+  const all = [KICK_PAD, ...PADS];
+  all.forEach(pad=>{
+    const row = document.createElement('div');
+    row.className='padrow';
+    const span = document.createElement('span'); span.textContent = pad.label;
+    const sel = document.createElement('select');
+    VARIANTS.forEach(v=>{
+      const opt = document.createElement('option');
+      opt.value=v; opt.textContent = v==='acoustic'?'Acoustic':v==='electronic'?'Electronic':'808';
+      sel.appendChild(opt);
+    });
+    sel.value = pad.variant;
+    sel.addEventListener('change', ()=>{ pad.variant = sel.value; });
+    row.appendChild(span); row.appendChild(sel);
+    soundMapEl.appendChild(row);
+  });
+}
+buildSoundMap();
 
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, w, h);
-            canvasCtx.drawImage(results.image, 0, 0, w, h);
+document.getElementById('modeStick').addEventListener('click', ()=>{
+  handMode='stick';
+  document.getElementById('modeStick').classList.add('active');
+  document.getElementById('modeWrist').classList.remove('active');
+});
+document.getElementById('modeWrist').addEventListener('click', ()=>{
+  handMode='wrist';
+  document.getElementById('modeWrist').classList.add('active');
+  document.getElementById('modeStick').classList.remove('active');
+});
+let handMode = 'stick';
 
-            // Deteksi Kick via Mulut Terbuka
-            if (results.faceLandmarks) {
-                const upperLip = results.faceLandmarks[13];
-                const lowerLip = results.faceLandmarks[14];
-                const mouthOpen = Math.abs(upperLip.y - lowerLip.y);
-                const kickDisp = document.getElementById('kick-disp');
-                
-                if (mouthOpen > 0.06 && !kickCooldown) {
-                    playSound('kick', 1.2);
-                    kickCooldown = true;
-                    kickDisp.innerText = "ON 🔥";
-                    kickDisp.style.color = "red";
-                    setTimeout(() => { 
-                        kickCooldown = false; 
-                        kickDisp.innerText = "OFF";
-                        kickDisp.style.color = "#00ff88";
-                    }, 250);
-                }
-            }
+/* ============================== CANVAS / VIDEO SETUP ============================== */
+const video = document.getElementById('video');
+const canvas = document.getElementById('view');
+const ctx = canvas.getContext('2d');
 
-            // Deteksi Tangan / Virtual Stick
-            const mode = document.getElementById('stick-mode').value;
-            let hitPoints = [];
+function resize(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
 
-            if (results.poseLandmarks) {
-                const leftWrist = results.poseLandmarks[15];
-                const rightWrist = results.poseLandmarks[16];
-                const leftIndex = results.poseLandmarks[19];
-                const rightIndex = results.poseLandmarks[20];
+/* Track pad hit state per (padId+hand) to detect enter events, plus velocity + cooldown */
+const padState = {}; // key -> {inside:bool, lastHit:0}
+function stateKey(padId, hand){ return padId+'_'+hand; }
 
-                const createHitPoint = (wrist, index, prevData) => {
-                    if (!wrist || wrist.visibility < 0.5) return null;
-                    let targetX, targetY;
+let velocityDisplay = 0;
+const velFill = document.getElementById('velFill');
 
-                    if (mode === 'stick' && index) {
-                        const dx = index.x - wrist.x;
-                        const dy = index.y - wrist.y;
-                        targetX = index.x + (dx * 1.5);
-                        targetY = index.y + (dy * 1.5);
-                        
-                        canvasCtx.beginPath();
-                        canvasCtx.moveTo(wrist.x * w, wrist.y * h);
-                        canvasCtx.lineTo(targetX * w, targetY * h);
-                        canvasCtx.strokeStyle = "rgba(255, 255, 255, 0.85)";
-                        canvasCtx.lineWidth = 7;
-                        canvasCtx.lineCap = "round";
-                        canvasCtx.stroke();
-                    } else {
-                        targetX = wrist.x;
-                        targetY = wrist.y;
-                    }
+function toScreen(lm, w, h){
+  return { x: w - lm.x*w, y: lm.y*h };
+}
 
-                    const currentPos = {x: targetX, y: targetY};
-                    const velo = calculateVelocity(currentPos, prevData);
-                    prevData.x = targetX; prevData.y = targetY; prevData.time = Date.now();
+function ellipseHit(px, py, pad, w, h){
+  const cx = pad.fx*w, cy = pad.fy*h, rx = pad.rx*w, ry = pad.ry*h;
+  const dx = (px-cx)/rx, dy=(py-cy)/ry;
+  return (dx*dx + dy*dy) <= 1;
+}
 
-                    canvasCtx.beginPath();
-                    canvasCtx.arc(targetX * w, targetY * h, 10, 0, 2*Math.PI);
-                    canvasCtx.fillStyle = "red";
-                    canvasCtx.fill();
+/* previous tracked points for velocity + trajectory (per hand) */
+const prevPoints = { left:null, right:null };
+let lastFrameTime = performance.now();
 
-                    return { x: targetX, y: targetY, velocity: velo };
-                };
+/* mouth tracking */
+let mouthCooldown = 0;
+const mouthStatusEl = document.getElementById('mouthStatus');
 
-                const hp1 = createHitPoint(leftWrist, leftIndex, prevLeftHand);
-                const hp2 = createHitPoint(rightWrist, rightIndex, prevRightHand);
-                if(hp1) hitPoints.push(hp1);
-                if(hp2) hitPoints.push(hp2);
-            }
+/* active pad glow timers for visual feedback */
+const activeGlow = {}; // padId -> intensity 0..1
 
-            // Render 3D Pads & Mapping Dinamis dari Menu Dropdown
-            pads.forEach(pad => {
-                const px = pad.cx * w;
-                const py = pad.cy * h;
-                const prx = pad.rx * w;
-                const pry = pad.ry * h;
+function drawPad(pad, w, h){
+  const cx = pad.fx*w, cy = pad.fy*h, rx = pad.rx*w, ry = pad.ry*h;
+  const glow = activeGlow[pad.id] || 0;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(1,1);
+  const grad = ctx.createRadialGradient(0,-ry*0.3,rx*0.1, 0,0, rx);
+  grad.addColorStop(0, shadeColor(pad.color, 40+glow*40));
+  grad.addColorStop(0.7, pad.color);
+  grad.addColorStop(1, shadeColor(pad.color, -40));
+  ctx.beginPath();
+  ctx.ellipse(0,0,rx,ry,0,0,Math.PI*2);
+  ctx.fillStyle = grad;
+  ctx.globalAlpha = 0.55 + glow*0.4;
+  if(glow>0){
+    ctx.shadowColor = pad.color;
+    ctx.shadowBlur = 25*glow;
+  }
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 2 + glow*3;
+  ctx.strokeStyle = 'rgba(255,255,255,'+(0.5+glow*0.5)+')';
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = '600 '+Math.max(11,rx*0.22)+'px Segoe UI';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(pad.label, 0, 0);
+  ctx.restore();
+}
+function shadeColor(hex, percent){
+  const num = parseInt(hex.slice(1),16);
+  let r=(num>>16)+percent, g=((num>>8)&0xff)+percent, b=(num&0xff)+percent;
+  r=Math.min(255,Math.max(0,r)); g=Math.min(255,Math.max(0,g)); b=Math.min(255,Math.max(0,b));
+  return `rgb(${r},${g},${b})`;
+}
 
-                let isHitNow = false;
-                let hitVelo = 0;
+function decayGlows(){
+  for(const k in activeGlow){
+    activeGlow[k] *= 0.88;
+    if(activeGlow[k] < 0.02) delete activeGlow[k];
+  }
+}
 
-                hitPoints.forEach(hp => {
-                    const dx = (hp.x * w) - px;
-                    const dy = (hp.y * h) - py;
-                    const inside = ((dx*dx) / (prx*prx)) + ((dy*dy) / (pry*pry));
-                    if (inside <= 1.2) {
-                        isHitNow = true;
-                        hitVelo = hp.velocity;
-                    }
-                });
+/* ============================== HOLISTIC SETUP ============================== */
+const holistic = new Holistic({
+  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`
+});
+holistic.setOptions({
+  modelComplexity: 1,
+  smoothLandmarks: true,
+  refineFaceLandmarks: true,
+  minDetectionConfidence: 0.6,
+  minTrackingConfidence: 0.6,
+});
+holistic.onResults(onResults);
 
-                // Ambil suara langsung dari nilai pilihan di menu dropdown UI
-                const soundSelectEl = document.getElementById(`sound-${pad.id}`);
-                const currentSound = soundSelectEl ? soundSelectEl.value : 'snare';
+function processHand(landmarks, handKey, w, h, now){
+  if(!landmarks || landmarks.length < 21) { prevPoints[handKey]=null; return; }
+  const wrist = landmarks[0];
+  const indexTip = landmarks[8];
 
-                if (isHitNow && !pad.isHit) {
-                    playSound(currentSound, hitVelo);
-                    pad.isHit = true;
-                } else if (!isHitNow) {
-                    pad.isHit = false;
-                }
+  let trackedLm;
+  if(handMode==='stick'){
+    // extend point beyond index fingertip along wrist->index direction
+    const dx = indexTip.x - wrist.x, dy = indexTip.y - wrist.y;
+    const ext = 0.9; // extension factor beyond fingertip
+    trackedLm = { x: indexTip.x + dx*ext, y: indexTip.y + dy*ext };
+  } else {
+    trackedLm = wrist;
+  }
 
-                // Render Visual 3D Ellipse
-                canvasCtx.beginPath();
-                canvasCtx.ellipse(px, py, prx, pry, 0, 0, 2 * Math.PI);
-                
-                const gradient = canvasCtx.createRadialGradient(px, py - (pry/2), 0, px, py, Math.max(prx, pry));
-                if (pad.isHit) {
-                    gradient.addColorStop(0, "#ffffff");
-                    gradient.addColorStop(1, pad.color);
-                    canvasCtx.shadowBlur = 25;
-                    canvasCtx.shadowColor = pad.color;
-                } else {
-                    gradient.addColorStop(0, pad.color);
-                    gradient.addColorStop(1, "#151515");
-                    canvasCtx.shadowBlur = 8;
-                    canvasCtx.shadowColor = "#000";
-                }
+  const pt = toScreen(trackedLm, w, h);
+  const wristPt = toScreen(wrist, w, h);
+  const tipPt = toScreen(indexTip, w, h);
 
-                canvasCtx.fillStyle = gradient;
-                canvasCtx.fill();
-                canvasCtx.lineWidth = 3;
-                canvasCtx.strokeStyle = "#666";
-                canvasCtx.stroke();
-                canvasCtx.shadowBlur = 0;
-                
-                // Teks Nama Sound Aktif di Atas Pad
-                canvasCtx.fillStyle = "white";
-                canvasCtx.font = "bold 14px Arial";
-                canvasCtx.textAlign = "center";
-                canvasCtx.fillText(currentSound.toUpperCase(), px, py + 4);
-            });
+  // draw stick
+  if(handMode==='stick'){
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 4;
+    ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(wristPt.x, wristPt.y);
+    ctx.lineTo(pt.x, pt.y);
+    ctx.stroke();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, 7, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  } else {
+    ctx.save();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, 9, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
 
-            canvasCtx.restore();
-        }
+  // velocity
+  const prev = prevPoints[handKey];
+  let speed = 0;
+  if(prev){
+    const dt = Math.max(1/120,(now - prev.t)/1000);
+    const dist = Math.hypot(pt.x-prev.x, pt.y-prev.y);
+    speed = dist/dt; // px/s
+  }
+  prevPoints[handKey] = {x:pt.x, y:pt.y, t:now};
 
-        const holistic = new Holistic({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`});
-        holistic.setOptions({
-            modelComplexity: 0,
-            smoothLandmarks: true,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
-        holistic.onResults(onResults);
+  const normSpeed = Math.min(1, speed/2200); // normalize
+  velocityDisplay = Math.max(velocityDisplay*0.85, normSpeed);
 
-        // Tombol Start
-        document.getElementById('start-btn').addEventListener('click', async () => {
-            document.getElementById('start-btn').style.display = 'none';
-            document.getElementById('loading-text').style.display = 'block';
-            
-            await loadAudio();
+  // hit test against pads
+  for(const pad of PADS){
+    const key = stateKey(pad.id, handKey);
+    const inside = ellipseHit(pt.x, pt.y, pad, w, h);
+    const st = padState[key] || {inside:false, lastHit:0};
+    if(inside && !st.inside && normSpeed > 0.12 && (now - st.lastHit) > 90){
+      playPad(pad, 0.25 + normSpeed*0.9);
+      activeGlow[pad.id] = 1;
+      st.lastHit = now;
+    }
+    st.inside = inside;
+    padState[key] = st;
+  }
+}
 
-            const camera = new Camera(videoElement, {
-                onFrame: async () => { await holistic.send({image: videoElement}); },
-                width: 640, height: 480
-            });
-            camera.start();
+function onResults(results){
+  const w = canvas.width, h = canvas.height;
+  const now = performance.now();
 
-            document.getElementById('loading-text').innerText = "Siap Dimainkan! 🥁";
-            document.getElementById('status-bar').style.display = 'flex';
-            
-            // Efek auto-transparan panel saat tidak disentuh
-            const panel = document.getElementById('ui-panel');
-            setTimeout(() => { panel.style.opacity = '0.35'; }, 4000);
-            panel.addEventListener('mouseenter', () => { panel.style.opacity = '1'; });
-            panel.addEventListener('mouseleave', () => { panel.style.opacity = '0.35'; });
-        });
+  ctx.save();
+  ctx.clearRect(0,0,w,h);
+  ctx.translate(w,0);
+  ctx.scale(-1,1);
+  if(results.image){
+    ctx.drawImage(results.image, 0, 0, w, h);
+  }
+  ctx.restore();
 
-        window.addEventListener('resize', () => {
-            canvasElement.width = window.innerWidth;
-            canvasElement.height = window.innerHeight;
-        });
-    </script>
+  ctx.save();
+
+  // mouth open detection (kick)
+  let mouthOpen = false;
+  if(results.faceLandmarks && results.faceLandmarks.length > 14){
+    const upperLip = results.faceLandmarks[13];
+    const lowerLip = results.faceLandmarks[14];
+    const faceTop = results.faceLandmarks[10];
+    const faceBottom = results.faceLandmarks[152];
+    const faceHeight = Math.hypot(faceTop.x-faceBottom.x, faceTop.y-faceBottom.y) || 0.3;
+    const gap = Math.hypot(upperLip.x-lowerLip.x, upperLip.y-lowerLip.y) / faceHeight;
+    mouthOpen = gap > 0.09;
+  }
+  mouthStatusEl.textContent = mouthOpen ? 'MULUT: BUKA (KICK!)' : 'MULUT: TUTUP';
+  mouthStatusEl.classList.toggle('open', mouthOpen);
+  if(mouthOpen && (now - mouthCooldown) > 260){
+    playPad(KICK_PAD, 0.95);
+    activeGlow[KICK_PAD.id] = 1;
+    mouthCooldown = now;
+  }
+
+  // draw pads (kick + hittable)
+  drawPad(KICK_PAD, w, h);
+  for(const pad of PADS) drawPad(pad, w, h);
+
+  // hands
+  processHand(results.leftHandLandmarks, 'left', w, h, now);
+  processHand(results.rightHandLandmarks, 'right', w, h, now);
+
+  decayGlows();
+  ctx.restore();
+
+  velFill.style.width = Math.round(velocityDisplay*100)+'%';
+  lastFrameTime = now;
+}
+
+/* ============================== START ============================== */
+const startBtn = document.getElementById('startBtn');
+const loadingEl = document.getElementById('loading');
+const panelEl = document.getElementById('panel');
+let cameraStarted = false;
+
+startBtn.addEventListener('click', async ()=>{
+  if(cameraStarted) return;
+  cameraStarted = true;
+  startBtn.textContent = 'Memulai...';
+  if(audioCtx.state === 'suspended') await audioCtx.resume();
+
+  const camera = new Camera(video, {
+    onFrame: async () => { await holistic.send({image: video}); },
+    width: 1280, height: 720
+  });
+  try{
+    await camera.start();
+    loadingEl.classList.add('hidden');
+    panelEl.classList.add('playing');
+    startBtn.textContent = '● Kamera Aktif';
+  }catch(e){
+    loadingEl.classList.add('hidden');
+    alert('Gagal mengakses kamera: '+e.message);
+    cameraStarted = false;
+    startBtn.textContent = '▶ Mulai Kamera';
+  }
+});
+loadingEl.classList.add('hidden'); // hide initial full loading, show start button flow instead
+</script>
 </body>
 </html>
