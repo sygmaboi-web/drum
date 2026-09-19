@@ -1,241 +1,65 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f1d25" />
-  <title>Air Drums – Drum virtual dengan gestur tangan</title>
-
-  <!-- Tipografi: Barlow Condensed (label ala stensil drum) + Figtree (antarmuka) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
-
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gesture-Based Virtual Drum Set</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- MediaPipe Hands & Camera Utils -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
-<div class="app">
 
-  <!-- ================= BAR ATAS ================= -->
-  <header class="topbar">
-    <div class="brand">
-      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-        <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.5" />
-        <circle cx="16" cy="16" r="5.5" fill="currentColor" />
-      </svg>
-      <h1>Air Drums</h1>
+    <!-- Webcam Feed Background -->
+    <video id="webcam-video" autoplay playsinline></video>
+    <canvas id="gesture-canvas"></canvas>
+
+    <!-- Drum Kit Area (Hitboxes) -->
+    <div id="drum-kit">
+        <!-- Drum pieces will be positioned via CSS, but are draggable via JS -->
+        <div class="drum-piece crash" data-piece="crash">Crash<br><small>(Y)</small></div>
+        <div class="drum-piece tom-high" data-piece="tomHigh">Hi Tom<br><small>(H)</small></div>
+        <div class="drum-piece tom-mid" data-piece="tomMid">Mid Tom<br><small>(J)</small></div>
+        <div class="drum-piece ride" data-piece="ride">Ride<br><small>(U)</small></div>
+        <div class="drum-piece hihat-open" data-piece="hihatOpen">HH Open<br><small>(W)</small></div>
+        <div class="drum-piece hihat-closed" data-piece="hihatClosed">HH Closed<br><small>(E)</small></div>
+        <div class="drum-piece snare" data-piece="snare">Snare<br><small>(S)</small></div>
+        <div class="drum-piece tom-floor" data-piece="tomFloor">Floor<br><small>(K)</small></div>
+        <div class="drum-piece kick" data-piece="kick">Kick<br><small>(Space)</small></div>
     </div>
 
-    <div class="toolbar">
-      <button id="btnCamera" class="btn" type="button" aria-pressed="false">
-        <span class="led" aria-hidden="true"></span>
-        <span class="btn-text">Kamera</span>
-      </button>
-
-      <!-- Metronom -->
-      <div class="cluster" role="group" aria-label="Metronom">
-        <button id="btnMetro" class="btn btn-square" type="button" aria-pressed="false" aria-label="Putar metronom">
-          <span class="glyph" aria-hidden="true"></span>
-        </button>
-        <label class="bpm">
-          <input id="bpm" type="number" min="30" max="260" step="1" value="100" inputmode="numeric" aria-label="Tempo dalam BPM" />
-          <span>BPM</span>
-        </label>
-        <div id="beatDots" class="beat-dots" aria-hidden="true"></div>
-      </div>
-
-      <!-- Rekam & unduh -->
-      <div class="cluster" role="group" aria-label="Perekam">
-        <button id="btnRec" class="btn btn-rec" type="button" aria-pressed="false">
-          <span class="rec-dot" aria-hidden="true"></span>
-          <span class="btn-text">Rekam</span>
-        </button>
-        <output id="recTime" class="time" aria-live="off">0:00</output>
-        <button id="btnDownload" class="btn" type="button" disabled>Unduh</button>
-      </div>
-
-      <label class="cluster master">
-        <span>Volume</span>
-        <input id="masterVol" type="range" min="0" max="1" step="0.01" value="0.85" aria-label="Volume master" />
-      </label>
-
-      <button id="btnSettings" class="btn btn-brass" type="button" aria-expanded="false" aria-controls="drawer">Pengaturan</button>
-    </div>
-  </header>
-
-  <!-- ================= STAGE ================= -->
-  <main class="stage-wrap">
-    <section id="stage" class="stage" aria-label="Area drum">
-      <!-- Feed webcam (di-mirror lewat CSS, opasitas rendah) -->
-      <video id="video" playsinline muted></video>
-      <!-- Kerangka tangan + kursor pemukul digambar di sini -->
-      <canvas id="overlay"></canvas>
-      <!-- Pad drum dibuat oleh script.js -->
-      <div id="pads" class="pads"></div>
-      <p id="stageHint" class="stage-hint" hidden></p>
-
-      <!-- Layar mulai: browser mewajibkan interaksi sebelum audio boleh berbunyi -->
-      <div id="startOverlay" class="start" role="dialog" aria-modal="true" aria-labelledby="startTitle">
-        <div class="start-card">
-          <h2 id="startTitle">Mainkan drum di udara.</h2>
-          <p>Ayunkan telunjuk ke bawah melewati lingkaran untuk memukul. Keyboard, sentuhan layar, dan perangkat MIDI juga berfungsi.</p>
-          <div class="start-actions">
-            <button id="btnStartCam" class="btn btn-brass btn-lg" type="button">Mulai dengan kamera</button>
-            <button id="btnStartNoCam" class="btn btn-lg" type="button">Mulai tanpa kamera</button>
-          </div>
-          <p id="startWarn" class="start-warn" hidden></p>
+    <!-- UI Overlay Controls -->
+    <div id="ui-panel">
+        <div class="panel-section master-section">
+            <h3>Master & FX</h3>
+            <label>Master Vol: <input type="range" id="master-vol" min="0" max="1" step="0.01" value="0.8"></label>
+            <label>Reverb: <input type="checkbox" id="master-reverb"></label>
+            <div id="midi-status">MIDI: Not Connected</div>
         </div>
-      </div>
-    </section>
-  </main>
 
-  <!-- ================= STATUS BAR ================= -->
-  <footer class="statusbar">
-    <span class="chip" data-chip="audio" data-state="off"><i></i>Audio <b>belum aktif</b></span>
-    <span class="chip" data-chip="cam" data-state="off"><i></i>Kamera <b>mati</b></span>
-    <span class="chip" data-chip="midi" data-state="off"><i></i>MIDI <b>belum aktif</b></span>
-    <span class="chip" data-chip="samples" data-state="off"><i></i>Sampel <b>memakai sintesis</b></span>
-    <span id="lastHit" class="last-hit"></span>
-  </footer>
-</div>
+        <div class="panel-section metronome-section">
+            <h3>Metronome</h3>
+            <input type="number" id="bpm-input" value="120" min="40" max="240"> BPM
+            <button id="metro-toggle">Play</button>
+        </div>
 
-<!-- ================= DRAWER PENGATURAN ================= -->
-<div id="scrim" class="scrim" hidden></div>
-<aside id="drawer" class="drawer" aria-label="Pengaturan" aria-hidden="true">
-  <div class="drawer-head">
-    <h2>Pengaturan</h2>
-    <button id="btnCloseDrawer" class="btn btn-square" type="button" aria-label="Tutup pengaturan">✕</button>
-  </div>
+        <div class="panel-section record-section">
+            <h3>Record</h3>
+            <button id="record-btn">Start Record</button>
+            <a id="download-link" style="display:none;">Download Audio</a>
+        </div>
+        
+        <div class="panel-section mixer-section">
+            <h3>Mixer & Sound Select</h3>
+            <div id="mixer-controls">
+                <!-- Dihasilkan secara dinamis via JS -->
+            </div>
+        </div>
+    </div>
 
-  <nav class="tabs" role="tablist" aria-label="Bagian pengaturan">
-    <button class="tab is-active" role="tab" type="button" data-tab="sound">Suara</button>
-    <button class="tab" role="tab" type="button" data-tab="mixer">Mixer</button>
-    <button class="tab" role="tab" type="button" data-tab="master">Master</button>
-    <button class="tab" role="tab" type="button" data-tab="gesture">Gestur</button>
-    <button class="tab" role="tab" type="button" data-tab="midi">MIDI</button>
-    <button class="tab" role="tab" type="button" data-tab="keys">Keyboard</button>
-  </nav>
-
-  <div class="drawer-body">
-
-    <!-- Suara: dropdown per instrumen -->
-    <section class="pane is-active" role="tabpanel" data-pane="sound">
-      <p class="pane-note">Tiap bagian drum punya 5 variasi suara yang dipilih sendiri-sendiri. Jika file ada di folder <code>audio/</code>, file itu dipakai; jika tidak, suara sintesis yang dimainkan.</p>
-      <div id="soundList" class="rows"></div>
-      <button id="btnReloadSamples" class="btn btn-sm" type="button">Muat ulang sampel</button>
-    </section>
-
-    <!-- Mixer: volume + panning per instrumen -->
-    <section class="pane" role="tabpanel" data-pane="mixer">
-      <p class="pane-note">Klik dua kali pada slider pan untuk mengembalikannya ke posisi bawaan.</p>
-      <div id="mixerList" class="rows"></div>
-    </section>
-
-    <!-- Master, efek, metronom, rekaman -->
-    <section class="pane" role="tabpanel" data-pane="master">
-      <div class="field">
-        <label for="masterVol2">Volume master</label>
-        <output id="masterVal2">85%</output>
-        <input id="masterVol2" type="range" min="0" max="1" step="0.01" value="0.85" />
-      </div>
-
-      <div class="field field-inline">
-        <label for="fxReverb">Reverb</label>
-        <span class="switch"><input id="fxReverb" type="checkbox" role="switch" /><i></i></span>
-      </div>
-      <div class="field">
-        <label for="fxReverbMix">Jumlah reverb</label>
-        <output id="fxReverbVal">30%</output>
-        <input id="fxReverbMix" type="range" min="0" max="1" step="0.01" value="0.3" />
-      </div>
-      <div class="field field-inline">
-        <label for="fxComp">Kompresor (merapatkan dinamika)</label>
-        <span class="switch"><input id="fxComp" type="checkbox" role="switch" /><i></i></span>
-      </div>
-
-      <div class="field">
-        <label for="metroVol">Volume metronom</label>
-        <output id="metroVolVal">60%</output>
-        <input id="metroVol" type="range" min="0" max="1" step="0.01" value="0.6" />
-      </div>
-      <div class="field field-inline">
-        <label for="metroBeats">Ketukan per birama</label>
-        <select id="metroBeats">
-          <option value="2">2</option><option value="3">3</option><option value="4">4</option>
-          <option value="5">5</option><option value="6">6</option><option value="7">7</option>
-        </select>
-      </div>
-      <div class="field field-inline">
-        <label for="metroInRec">Sertakan metronom dalam rekaman</label>
-        <span class="switch"><input id="metroInRec" type="checkbox" role="switch" /><i></i></span>
-      </div>
-      <div class="field field-inline">
-        <label for="recFormat">Format unduhan</label>
-        <select id="recFormat">
-          <option value="original">Asli dari browser</option>
-          <option value="wav">WAV</option>
-        </select>
-      </div>
-    </section>
-
-    <!-- Gestur -->
-    <section class="pane" role="tabpanel" data-pane="gesture">
-      <div class="field field-inline">
-        <label for="strikePoint">Titik pemukul</label>
-        <select id="strikePoint">
-          <option value="index">Ujung telunjuk</option>
-          <option value="palm">Telapak tangan</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="sensitivity">Sensitivitas pukulan</label>
-        <output id="sensitivityVal">6</output>
-        <input id="sensitivity" type="range" min="1" max="10" step="1" value="6" />
-      </div>
-      <p class="pane-note">Makin tinggi, makin ringan ayunan yang dibutuhkan. Jika drum berbunyi sendiri, turunkan; jika pukulan sering terlewat, naikkan. Kursor di layar berubah kuning saat ayunan cukup cepat.</p>
-      <div class="field field-inline">
-        <label for="modelComplexity">Model pelacak tangan</label>
-        <select id="modelComplexity">
-          <option value="0">Cepat (latensi rendah)</option>
-          <option value="1">Akurat</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="videoOpacity">Kecerahan kamera</label>
-        <output id="videoOpacityVal">30%</output>
-        <input id="videoOpacity" type="range" min="0.05" max="0.9" step="0.01" value="0.3" />
-      </div>
-      <div class="field field-inline">
-        <label for="showSkeleton">Tampilkan kerangka tangan</label>
-        <span class="switch"><input id="showSkeleton" type="checkbox" role="switch" /><i></i></span>
-      </div>
-    </section>
-
-    <!-- MIDI -->
-    <section class="pane" role="tabpanel" data-pane="midi">
-      <p id="midiStatus" class="pane-note">MIDI belum aktif.</p>
-      <button id="btnMidi" class="btn btn-sm" type="button">Hubungkan MIDI</button>
-      <ul id="midiDevices" class="device-list"></ul>
-      <p id="midiMonitor" class="monitor">Belum ada pesan masuk.</p>
-
-      <h3>Pemetaan nada</h3>
-      <p class="pane-note">Bawaan mengikuti General MIDI (kick 36, snare 38, dan seterusnya) dan menerima semua channel. Klik Learn, lalu pukul pad di hardware untuk menetapkan nadanya.</p>
-      <div id="midiMapList" class="rows"></div>
-      <button id="btnMidiReset" class="btn btn-sm" type="button">Kembalikan ke bawaan</button>
-    </section>
-
-    <!-- Keyboard -->
-    <section class="pane" role="tabpanel" data-pane="keys">
-      <p class="pane-note">Berguna saat kamera dimatikan. Tahan Shift untuk pukulan yang lebih pelan.</p>
-      <div id="keyList" class="rows"></div>
-    </section>
-  </div>
-</aside>
-
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-<!-- MediaPipe Hands (versi dipin agar stabil). Memuat model dari CDN, jadi butuh internet. -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
-<script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
