@@ -1,142 +1,86 @@
 :root {
     --bg-color: #121212;
-    --panel-bg: rgba(25, 25, 25, 0.85);
+    --panel-bg: rgba(18, 18, 18, 0.95);
     --accent: #00ffcc;
     --text: #e0e0e0;
-    --drum-bg: rgba(45, 45, 45, 0.7);
-    --drum-border: #444;
+    --drum-bg: rgba(45, 45, 45, 0.6);
+    --drum-border: #555;
 }
 
 body, html {
-    margin: 0;
-    padding: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: var(--bg-color);
-    color: var(--text);
+    margin: 0; padding: 0; width: 100vw; height: 100vh;
+    background-color: var(--bg-color); color: var(--text);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    overflow: hidden;
+    overflow: hidden; 
+    touch-action: none; /* Cegah browser ikut ke-scroll/zoom saat main drum */
 }
 
 /* Webcam Background */
 #webcam-video, #gesture-canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    object-fit: cover;
-    z-index: 0;
-    transform: scaleX(-1); /* Mirror effect */
+    position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+    object-fit: cover; z-index: 0; transform: scaleX(-1); opacity: 0.15;
 }
 
-#webcam-video {
-    opacity: 0.15; /* Low opacity panduan visual */
-}
-
-/* Drum Kit Hitboxes */
+/* Drum Kit Area - Dibatasi 65vh agar tidak nabrak panel UI bawah */
 #drum-kit {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 10;
-    pointer-events: none; /* Let dragging logic handle pointers */
+    position: absolute; top: 0; left: 0; width: 100vw; height: 65vh;
+    z-index: 10; pointer-events: none;
 }
 
+/* Ukuran drum dibikin responsif pakai vmin */
 .drum-piece {
     position: absolute;
-    width: 120px;
-    height: 120px;
-    background: var(--drum-bg);
-    border: 2px solid var(--drum-border);
-    border-radius: 50%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    backdrop-filter: blur(4px);
-    cursor: grab;
-    pointer-events: auto; /* Enable interaction */
-    user-select: none;
-    transition: transform 0.1s, box-shadow 0.1s, background 0.1s;
-    font-weight: bold;
-    text-shadow: 1px 1px 2px #000;
+    width: 16vmin; 
+    height: 16vmin;
+    min-width: 55px; min-height: 55px;
+    background: var(--drum-bg); border: 2px solid var(--drum-border);
+    border-radius: 50%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    backdrop-filter: blur(3px); cursor: grab; pointer-events: auto;
+    user-select: none; transition: 0.1s; font-size: 2vmin; font-weight: bold;
 }
+.drum-piece small { font-size: 1.5vmin; color: #aaa; margin-top: 2px; }
+.drum-piece.hit { transform: scale(0.9); background: rgba(0, 255, 204, 0.3); box-shadow: 0 0 15px var(--accent); border-color: var(--accent); }
 
-.drum-piece small { font-weight: normal; font-size: 0.8em; color: #aaa; }
-
-/* Visual Feedback on Hit */
-.drum-piece.hit {
-    transform: scale(0.9);
-    background: rgba(0, 255, 204, 0.4);
-    border-color: var(--accent);
-    box-shadow: 0 0 20px var(--accent);
-}
-
-/* Initial Realistic Layout (Can be dragged later) */
-.crash { top: 15%; left: 20%; }
-.tom-high { top: 20%; left: 35%; }
-.tom-mid { top: 20%; left: 55%; }
-.ride { top: 15%; left: 70%; }
-.hihat-open { top: 40%; left: 10%; }
-.hihat-closed { top: 55%; left: 12%; }
+/* Layout Posisi Drum (Persentase dari 65vh) */
+.crash { top: 5%; left: 15%; }
+.tom-high { top: 15%; left: 35%; }
+.tom-mid { top: 15%; left: 55%; }
+.ride { top: 5%; left: 75%; }
+.hihat-open { top: 35%; left: 5%; }
+.hihat-closed { top: 60%; left: 10%; }
 .snare { top: 50%; left: 30%; }
 .tom-floor { top: 50%; left: 70%; }
-.kick { top: 75%; left: 45%; width: 140px; height: 140px; }
+.kick { top: 65%; left: 45%; width: 20vmin; height: 20vmin; }
 
-/* UI Panels */
+/* UI Panel Bawah - Compact & Horizontal Scrollable */
 #ui-panel {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 35vh;
-    background: var(--panel-bg);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid #333;
-    z-index: 20;
-    display: flex;
-    padding: 10px;
-    box-sizing: border-box;
-    gap: 15px;
-    overflow-y: auto;
+    position: absolute; bottom: 0; left: 0; width: 100vw; height: 35vh;
+    background: var(--panel-bg); border-top: 1px solid #333; z-index: 20;
+    display: flex; padding: 10px; box-sizing: border-box; gap: 10px;
+    overflow-x: auto; overflow-y: hidden; align-items: stretch;
 }
 
 .panel-section {
-    background: rgba(0,0,0,0.4);
-    padding: 15px;
-    border-radius: 8px;
-    border: 1px solid #333;
-    flex: 1;
+    background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px;
+    border: 1px solid #333; display: flex; flex-direction: column; 
+    min-width: max-content;
 }
+.panel-section h3 { margin: 0 0 8px 0; color: var(--accent); font-size: 0.85rem; border-bottom: 1px solid #444; padding-bottom: 4px; }
 
-.panel-section h3 { margin-top: 0; color: var(--accent); font-size: 1rem; border-bottom: 1px solid #444; padding-bottom: 5px; }
-
-/* Mixer Controls */
-.mixer-section { flex: 3; overflow-x: auto; }
-#mixer-controls {
-    display: flex;
-    gap: 15px;
-}
+/* Area Mixer */
+.mixer-section { flex: 1; }
+#mixer-controls { display: flex; gap: 8px; height: 100%; overflow-x: auto; align-items: flex-start; }
 .channel-strip {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: #222;
-    padding: 10px;
-    border-radius: 6px;
-    min-width: 90px;
+    display: flex; flex-direction: column; align-items: center; background: #222;
+    padding: 8px; border-radius: 6px; min-width: 65px; font-size: 0.7rem; gap: 4px;
 }
-.channel-strip label { font-size: 0.75rem; margin-top: 5px; }
-.channel-strip select, .channel-strip input { width: 100%; margin-top: 4px; }
+.channel-strip select, .channel-strip input { width: 100%; }
 
-button {
-    background: #333; color: #fff; border: 1px solid var(--accent);
-    padding: 8px 12px; border-radius: 4px; cursor: pointer; transition: 0.2s;
-}
-button:hover { background: var(--accent); color: #000; }
-#midi-status { margin-top: 10px; font-size: 0.9em; color: #ff5555; }
-#midi-status.connected { color: var(--accent); }
+button { background: #333; color: #fff; border: 1px solid var(--accent); padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; }
+#midi-status { margin-top: auto; font-size: 0.75rem; }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #111; }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
