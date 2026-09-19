@@ -1,65 +1,97 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gesture-Based Virtual Drum Set</title>
-    <link rel="stylesheet" href="style.css">
-    
-    <!-- MediaPipe Hands & Camera Utils -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Gesture Virtual Drum Set</title>
+
+<link rel="stylesheet" href="style.css">
+
+<!-- MediaPipe -->
+https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.jsscript>
+https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.jsscript>
+https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.jsscript>
+
 </head>
 <body>
 
-    <!-- Webcam Feed Background -->
-    <video id="webcam-video" autoplay playsinline></video>
-    <canvas id="gesture-canvas"></canvas>
+<div id="app">
 
-    <!-- Drum Kit Area (Hitboxes) -->
-    <div id="drum-kit">
-        <!-- Drum pieces will be positioned via CSS, but are draggable via JS -->
-        <div class="drum-piece crash" data-piece="crash">Crash<br><small>(Y)</small></div>
-        <div class="drum-piece tom-high" data-piece="tomHigh">Hi Tom<br><small>(H)</small></div>
-        <div class="drum-piece tom-mid" data-piece="tomMid">Mid Tom<br><small>(J)</small></div>
-        <div class="drum-piece ride" data-piece="ride">Ride<br><small>(U)</small></div>
-        <div class="drum-piece hihat-open" data-piece="hihatOpen">HH Open<br><small>(W)</small></div>
-        <div class="drum-piece hihat-closed" data-piece="hihatClosed">HH Closed<br><small>(E)</small></div>
-        <div class="drum-piece snare" data-piece="snare">Snare<br><small>(S)</small></div>
-        <div class="drum-piece tom-floor" data-piece="tomFloor">Floor<br><small>(K)</small></div>
-        <div class="drum-piece kick" data-piece="kick">Kick<br><small>(Space)</small></div>
+    <!-- Webcam -->
+    <video id="video" autoplay playsinline muted></video>
+
+    <canvas id="handCanvas"></canvas>
+
+    <!-- Drum Stage -->
+    <div id="drumStage">
+
+        <div class="drum crash draggable" data-piece="crash">CRASH</div>
+        <div class="drum ride draggable" data-piece="ride">RIDE</div>
+
+        <div class="drum highTom draggable" data-piece="highTom">HIGH TOM</div>
+        <div class="drum midTom draggable" data-piece="midTom">MID TOM</div>
+        <div class="drum floorTom draggable" data-piece="floorTom">FLOOR TOM</div>
+
+        <div class="drum hihat draggable" data-piece="closedHat">HI-HAT</div>
+
+        <div class="drum snare draggable" data-piece="snare">SNARE</div>
+
+        <div class="drum kick draggable" data-piece="kick">KICK</div>
+
     </div>
 
-    <!-- UI Overlay Controls -->
-    <div id="ui-panel">
-        <div class="panel-section master-section">
-            <h3>Master & FX</h3>
-            <label>Master Vol: <input type="range" id="master-vol" min="0" max="1" step="0.01" value="0.8"></label>
-            <label>Reverb: <input type="checkbox" id="master-reverb"></label>
-            <div id="midi-status">MIDI: Not Connected</div>
-        </div>
+    <!-- Control Panel -->
 
-        <div class="panel-section metronome-section">
-            <h3>Metronome</h3>
-            <input type="number" id="bpm-input" value="120" min="40" max="240"> BPM
-            <button id="metro-toggle">Play</button>
-        </div>
+    <div id="controlPanel">
 
-        <div class="panel-section record-section">
-            <h3>Record</h3>
-            <button id="record-btn">Start Record</button>
-            <a id="download-link" style="display:none;">Download Audio</a>
-        </div>
-        
-        <div class="panel-section mixer-section">
-            <h3>Mixer & Sound Select</h3>
-            <div id="mixer-controls">
-                <!-- Dihasilkan secara dinamis via JS -->
-            </div>
-        </div>
+        <h2>Settings</h2>
+
+        <button id="startCam">Start Camera</button>
+
+        <button id="recordBtn">Record</button>
+        <button id="stopRecord">Stop</button>
+
+        <hr>
+
+        <label>Master Volume</label>
+        <input type="range"
+               id="masterVolume"
+               min="0"
+               max="1"
+               step="0.01"
+               value="0.8">
+
+        <label>
+            Reverb
+            <input type="checkbox" id="reverbToggle">
+        </label>
+
+        <hr>
+
+        <h3>Metronome</h3>
+
+        <input type="number"
+               id="bpm"
+               value="120">
+
+        <button id="metroStart">
+            Start
+        </button>
+
+        <button id="metroStop">
+            Stop
+        </button>
+
+        <hr>
+
+        <div id="instrumentSettings"></div>
+
     </div>
 
-    <script src="script.js"></script>
+</div>
+
+<script src="script.js"></script>
+
 </body>
 </html>
